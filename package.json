@@ -1,16 +1,15 @@
 {
   "name": "sambatech-mining-videos",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Mining Scripts for SambaTech API",
-  "main": "index.js",
   "scripts": {
     "sync:categories": "node sambatech/extractCategories.js",
     "sync:videos": "node sambatech/extractVideos.js",
     "sync:thumbs": "node thumbs/generateThumbs.js",
     "sync": "npm run sync:categories && npm run sync:videos && npm run sync:thumbs",
   },
-  "author": "",
-  "license": "ISC",
+  "author": "luizjr8 <luiz@lzjr.com.br>",
+  "license": "MIT",
   "devDependencies": {
     "async": "^3.2.4",
     "axios": "^0.27.2",
