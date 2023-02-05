@@ -1,4 +1,3 @@
-from flask import Flask, request
 import numpy as np
 from keras.models import Model
 from keras.layers import Dense, Dropout
@@ -6,6 +5,8 @@ from keras.applications.mobilenet import MobileNet
 from keras.applications.mobilenet import preprocess_input
 from keras.utils import load_img, img_to_array
 import tensorflow as tf
+from path import Path
+import json
 
 nima_model = None
 nima_aesthetic = None
@@ -20,9 +21,6 @@ with tf.device('/GPU:0'):
 	nima_aesthetic.load_weights('weights/weights_mobilenet_aesthetic_0.07.hdf5')
 	nima_technical = Model(base_model.input, Dense(10, activation='softmax')(Dropout(0.75)(base_model.output)))
 	nima_technical.load_weights('weights/weights_mobilenet_technical_0.11.hdf5')
-
-# Inicializa
-app = Flask(__name__)
 
 # calculate mean score for AVA dataset
 def mean_score(scores):
@@ -43,43 +41,45 @@ def decode_img(img):
   # Resize the image to the desired size
   return tf.image.resize(img, [320, 320])
 
-@app.route("/")
-def index():
-	file = request.args.get("file")
-	img = load_img(f"img/{file}", target_size=None)
-	x = img_to_array(img)
-	x = np.expand_dims(x, axis=0)
+def run():
 
-	x = preprocess_input(x)
+	imgs = Path("../../eadflix-api/.cache/thumbs/").files('*.jpg')
+	score_list = []
+	current = 0;
+	totalImagens = len(imgs);
 
-	scores = nima_model(x, training=False)[0]
-	scores_aest = nima_aesthetic(x, training=False)[0]
-	scores_tech = nima_technical(x, training=False)[0]
+	for file in imgs:
+		current += 1
+		print("[{:.2f}%] Avaliando {} de {}".format(current/totalImagens * 100, current, totalImagens))
 
-	total = mean_score(scores)*2 + mean_score(scores_aest)*2 + mean_score(scores_tech)
+		img = load_img(file, target_size=None)
+		x = img_to_array(img)
+		x = np.expand_dims(x, axis=0)
 
-	# strReturn = "NIMA Score : %0.3f +- (%0.3f)" % (mean_score(scores), std_score(scores))
-	# strReturn += "\r\nNIMA Aesthetic Score : %0.3f +- (%0.3f)" % (mean_score(scores_aest), std_score(scores_aest))
-	# strReturn += "\r\nNIMA Technical Score : %0.3f +- (%0.3f)" % (mean_score(scores_tech), std_score(scores_tech))
-	# strReturn += "\r\Total %s : %0.3f Méd: %0.3f " % (file, total, total / 3)
+		x = preprocess_input(x)
 
-	objReturn = {
-		"file": file,
-		"aesthetic": mean_score(scores_aest),
-		"technical": mean_score(scores_tech),
-		"mobilenet": mean_score(scores),
-		"score": total,
-		"score_mean": total / 5
-	}
-	return objReturn
+		scores = nima_model(x, training=False)[0]
+		scores_aest = nima_aesthetic(x, training=False)[0]
+		scores_tech = nima_technical(x, training=False)[0]
 
-@app.route("/add", methods=["POST"])
-def add():
-    data = request.get_json()
-    num1 = data["num1"]
-    num2 = data["num2"]
-    result = num1 + num2
-    return {"result": result}
+		total = mean_score(scores)*2 + mean_score(scores_aest)*2 + mean_score(scores_tech)
+
+		# strReturn = "NIMA Score : %0.3f +- (%0.3f)" % (mean_score(scores), std_score(scores))
+		# strReturn += "\r\nNIMA Aesthetic Score : %0.3f +- (%0.3f)" % (mean_score(scores_aest), std_score(scores_aest))
+		# strReturn += "\r\nNIMA Technical Score : %0.3f +- (%0.3f)" % (mean_score(scores_tech), std_score(scores_tech))
+		# strReturn += "\r\Total %s : %0.3f Méd: %0.3f " % (file, total, total / 3)
+
+		score_list.append({
+			"file": str(file.name),
+			"aesthetic": float(mean_score(scores_aest)),
+			"technical": float(mean_score(scores_tech)),
+			"mobilenet": float(mean_score(scores)),
+			"score": float(total),
+			"score_mean": float(total / 5)
+		})
+
+	with open("output.json", "w") as file:
+		file.write(json.dumps(score_list))
 
 if __name__ == "__main__":
-    app.run(port=2564, host="0.0.0.0")
+	run()

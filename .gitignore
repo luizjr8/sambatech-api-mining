@@ -1,3 +1,6 @@
 data
 node_modules
 venv/
+app/.venv
+.vscode/launch.json
+app/output.json
